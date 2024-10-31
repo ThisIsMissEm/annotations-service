@@ -13,8 +13,8 @@ import {
 import User from './user.js'
 
 export default class Annotation extends BaseModel {
-  static getCollectionId(iri: string): string {
-    return createHash('sha256').update(new URL(iri).href, 'utf-8').digest('hex')
+  static getCollectionId(iri: string): Buffer {
+    return createHash('sha256').update(new URL(iri).href, 'utf-8').digest()
   }
 
   @column({ isPrimary: true })

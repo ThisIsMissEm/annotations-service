@@ -38,6 +38,7 @@ export default class AnnotationController {
       'Content-Type',
       'application/ld+json; profile="http://www.w3.org/ns/anno.jsonld"'
     )
+
     response.header('Link', '<http://www.w3.org/ns/ldp#Resource>; rel="type"')
     response.header('Allow', 'GET')
     response.header('Cache-Control', 'public')
@@ -48,7 +49,7 @@ export default class AnnotationController {
       'id': new URL(
         router
           .builder()
-          .params({ collectionId: annotation.collectionId, id: annotation.id })
+          .params({ collectionId: annotation.collectionId.toString('hex'), id: annotation.id })
           .make('annotation.show'),
         baseUrl
       ),
