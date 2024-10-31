@@ -9,4 +9,12 @@
 
 import router from '@adonisjs/core/services/router'
 
-router.on('/').render('pages/home')
+const AnnotationsController = () => import('#controllers/annotations_controller')
+const AnnotationController = () => import('#controllers/annotation_controller')
+
+router.resource('annotations', AnnotationsController).only(['index', 'create', 'show'])
+router
+  .resource('annotations.annotation', AnnotationController)
+  .params({ annotations: 'collectionId' })
+  .only(['show', 'edit', 'update', 'destroy'])
+  .as('annotation')

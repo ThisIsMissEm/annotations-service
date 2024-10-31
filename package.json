@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node bin/server.js",
     "build": "node ace build",
+    "console": "node ace repl",
     "db:migrate": "node ace migration:run",
     "db:fresh": "node ace migration:fresh",
     "dev": "node ace serve --hmr",
@@ -64,7 +65,8 @@
     "edge.js": "^6.2.0",
     "luxon": "^3.5.0",
     "pg": "^8.13.1",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "uuid": "^11.0.2"
   },
   "hotHook": {
     "boundaries": [
