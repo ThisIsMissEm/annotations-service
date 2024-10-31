@@ -16,6 +16,7 @@ if (env.get('DATABASE_USE_SSL')) {
 
 const dbConfig = defineConfig({
   connection: 'postgres',
+  prettyPrintDebugQueries: app.inDev,
 
   connections: {
     postgres: {
@@ -32,7 +33,7 @@ const dbConfig = defineConfig({
         naturalSort: true,
         paths: ['database/migrations'],
       },
-      debug: false,
+      debug: app.inDev,
     },
   },
 })
