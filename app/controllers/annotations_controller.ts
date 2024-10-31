@@ -23,11 +23,17 @@ export default class AnnotationsController {
    * Show individual record
    */
   async show(ctx: HttpContext) {
-    const { params, request, response } = ctx
+    const { params, request, response, logger } = ctx
     const queryParams = request.qs()
 
+    const pageRequested = Number.parseInt(queryParams.page ?? '0', 10)
+    if (Number.isNaN(pageRequested)) {
+      response.abort({ error: 'Bad Request, page query parameter malformed' }, 400)
+      return
+    }
+
     const collection = await AnnotationCollection.find(params.id, {
-      page: queryParams.page ?? 1,
+      page: pageRequested === 0 ? 1 : pageRequested,
       limit: 2,
     })
 
@@ -49,7 +55,8 @@ export default class AnnotationsController {
       'application/ld+json; profile="http://www.w3.org/ns/anno.jsonld"'
     )
 
-    if (queryParams.page === undefined) {
+    // Only AnnotationCollection has these headers:
+    if (pageRequested === 0) {
       response.header('Link', '<http://www.w3.org/ns/ldp#BasicContainer>; rel="type"')
       response.header(
         'Link',
@@ -57,8 +64,9 @@ export default class AnnotationsController {
       )
     }
 
-    // POST, GET, OPTIONS, HEAD
-    if (queryParams.page === undefined) {
+    // For the AnnotationCollection, when page is 0, allow adding entries.
+    // But for AnnotationPage's, only allow reading:
+    if (pageRequested === 0) {
       response.header('Allow', 'POST, GET, HEAD, OPTIONS')
     } else {
       response.header('Allow', 'GET, HEAD, OPTIONS')
@@ -69,7 +77,7 @@ export default class AnnotationsController {
       baseUrl
     ).href
 
-    if (queryParams.page === undefined) {
+    if (pageRequested === 0) {
       response.json({
         '@context': ['http://www.w3.org/ns/anno.jsonld', 'http://www.w3.org/ns/ldp.jsonld'],
         'id': collectionId,
@@ -77,7 +85,11 @@ export default class AnnotationsController {
         'total': collection.total,
         'modified': collection.modified,
         'label': `Web Annotations about ${collection.target}`,
-        'first': collection.items.baseUrl(collectionId).getUrl(1),
+        // If we the collection is empty, don't render a first property:
+        'first': collection.items.isEmpty
+          ? undefined
+          : collection.items.baseUrl(collectionId).getUrl(1),
+        // If we don't have more pages, don't render a last property:
         'last': collection.items.hasMorePages
           ? collection.items.baseUrl(collectionId).getUrl(collection.items.lastPage)
           : undefined,
@@ -85,18 +97,26 @@ export default class AnnotationsController {
     } else {
       response.json({
         '@context': 'http://www.w3.org/ns/anno.jsonld',
-        'id': 'http://example.org/annotations/?iris=1&page=0',
+        'id': new URL(
+          router.builder().params({ id: collection.id }).qs({ page: '0' }).make('annotations.show'),
+          baseUrl
+        ).href,
         'type': 'AnnotationPage',
         'partOf': {
           id: collectionId,
           total: collection.items.total,
           modified: collection.modified,
         },
-        // TODO: figure out what this means
-        // 'startIndex': 0,
+        // If the currently requested page is empty, then return no startIndex, as there's no items:
+        'startIndex': collection.items.isEmpty
+          ? undefined
+          : // Otherwise, return the start index of the items within the current page with a 0-based offset:
+            (collection.items.currentPage - 1) * collection.items.perPage,
+        // If we don't have more pages, don't render a next property:
         'next': collection.items.hasMorePages
           ? collection.items.baseUrl(collectionId).getNextPageUrl()
           : undefined,
+        // If we don't have previous pages, don't render a prev property:
         'prev':
           collection.items.currentPage > 1
             ? collection.items.baseUrl(collectionId).getPreviousPageUrl()
