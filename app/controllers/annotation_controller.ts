@@ -1,13 +1,17 @@
 // import AnnotationCollection from '#models/annotation_collection'
-import Annotation from '#models/annotation'
 import type { HttpContext } from '@adonisjs/core/http'
 import router from '@adonisjs/core/services/router'
+
+import Annotation from '#models/annotation'
+import { getContentNegotiation } from '#utils/content_negotiation'
 
 export default class AnnotationController {
   /**
    * Show individual record
    */
-  async show({ params, request, response, logger }: HttpContext) {
+  async show(ctx: HttpContext) {
+    const { params, request, response } = ctx
+
     const annotation = await Annotation.findBy({
       id: params.id,
     })
@@ -22,15 +26,8 @@ export default class AnnotationController {
       return
     }
 
-    const format = request.accepts([
-      'application/ld+json; profile="http://www.w3.org/ns/anno.jsonld"',
-      'application/ld+json',
-      'application/json',
-      'text/html',
-      '*/*',
-    ])
-
-    if (!format || format === 'text/html' || format === '*/*') {
+    const format = getContentNegotiation(ctx)
+    if (format === 'text/html' || format === '*/*') {
       response.abort('Not Implement', 406)
       return
     }
@@ -67,15 +64,15 @@ export default class AnnotationController {
   /**
    * Edit individual record
    */
-  async edit({ params }: HttpContext) {}
+  async edit({}: HttpContext) {}
 
   /**
    * Handle form submission for the edit action
    */
-  async update({ params, request }: HttpContext) {}
+  async update({}: HttpContext) {}
 
   /**
    * Delete record
    */
-  async destroy({ params }: HttpContext) {}
+  async destroy({}: HttpContext) {}
 }

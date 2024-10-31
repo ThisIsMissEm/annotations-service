@@ -8,13 +8,18 @@
 */
 
 import router from '@adonisjs/core/services/router'
+import { middleware } from './kernel.js'
 
 const AnnotationsController = () => import('#controllers/annotations_controller')
 const AnnotationController = () => import('#controllers/annotation_controller')
 
-router.resource('annotations', AnnotationsController).only(['index', 'create', 'show'])
 router
-  .resource('annotations.annotation', AnnotationController)
-  .params({ annotations: 'collectionId' })
-  .only(['show', 'edit', 'update', 'destroy'])
-  .as('annotation')
+  .group(() => {
+    router.resource('annotations', AnnotationsController).only(['index', 'create', 'show'])
+    router
+      .resource('annotations.annotation', AnnotationController)
+      .params({ annotations: 'collectionId' })
+      .only(['show', 'edit', 'update', 'destroy'])
+      .as('annotation')
+  })
+  .use(middleware.auth())
