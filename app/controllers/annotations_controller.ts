@@ -23,17 +23,17 @@ export default class AnnotationsController {
    * Show individual record
    */
   async show(ctx: HttpContext) {
-    const { params, request, response, logger } = ctx
+    const { params, request, response } = ctx
     const queryParams = request.qs()
 
-    const pageRequested = Number.parseInt(queryParams.page ?? '0', 10)
-    if (Number.isNaN(pageRequested)) {
+    const pageRequested = Number.parseInt(queryParams.page ?? '-1', 10)
+    if (queryParams.page && (Number.isNaN(pageRequested) || pageRequested <= 0)) {
       response.abort({ error: 'Bad Request, page query parameter malformed' }, 400)
       return
     }
 
     const collection = await AnnotationCollection.find(params.id, {
-      page: pageRequested === 0 ? 1 : pageRequested,
+      page: pageRequested <= 0 ? 1 : pageRequested,
       limit: 2,
     })
 
@@ -77,7 +77,7 @@ export default class AnnotationsController {
       baseUrl
     ).href
 
-    if (pageRequested === 0) {
+    if (pageRequested === -1) {
       response.json({
         '@context': ['http://www.w3.org/ns/anno.jsonld', 'http://www.w3.org/ns/ldp.jsonld'],
         'id': collectionId,
@@ -98,7 +98,11 @@ export default class AnnotationsController {
       response.json({
         '@context': 'http://www.w3.org/ns/anno.jsonld',
         'id': new URL(
-          router.builder().params({ id: collection.id }).qs({ page: '0' }).make('annotations.show'),
+          router
+            .builder()
+            .params({ id: collection.id })
+            .qs({ page: collection.items.currentPage })
+            .make('annotations.show'),
           baseUrl
         ).href,
         'type': 'AnnotationPage',
