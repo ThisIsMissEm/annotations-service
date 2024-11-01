@@ -66,6 +66,7 @@ export default class AnnotationsController {
 
     // For the AnnotationCollection, when page is 0, allow adding entries.
     // But for AnnotationPage's, only allow reading:
+    response.header('Vary', 'Allow')
     if (pageRequested === 0) {
       response.header('Allow', 'POST, GET, HEAD, OPTIONS')
     } else {

@@ -40,6 +40,7 @@ export default class AnnotationController {
     )
 
     response.header('Link', '<http://www.w3.org/ns/ldp#Resource>; rel="type"')
+    response.header('Vary', 'Allow')
     response.header('Allow', 'GET')
     response.header('Cache-Control', 'public')
 
