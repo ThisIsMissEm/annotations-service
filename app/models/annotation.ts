@@ -2,14 +2,7 @@ import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import { createHash } from 'node:crypto'
 import { v7 as uuid } from 'uuid'
 import { DateTime } from 'luxon'
-import {
-  BaseModel,
-  beforeCreate,
-  beforeSave,
-  belongsTo,
-  column,
-  computed,
-} from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, beforeSave, belongsTo, column } from '@adonisjs/lucid/orm'
 import User from './user.js'
 
 export default class Annotation extends BaseModel {
