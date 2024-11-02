@@ -28,6 +28,7 @@
     "#validators/*": "./app/validators/*.js",
     "#providers/*": "./providers/*.js",
     "#policies/*": "./app/policies/*.js",
+    "#presenters/*": "./app/presenters/*.js",
     "#abilities/*": "./app/abilities/*.js",
     "#utils/*": "./app/utils/*.js",
     "#database/*": "./database/*.js",

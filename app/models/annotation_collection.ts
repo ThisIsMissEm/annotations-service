@@ -1,9 +1,19 @@
 import db from '@adonisjs/lucid/services/db'
 import Annotation from './annotation.js'
+import { DateTime } from 'luxon'
+import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 export interface PaginationArguments {
   page: number
   limit: number
+}
+
+export interface AnnotationCollectionInterface {
+  id: string
+  total: number
+  modified: DateTime
+  target: string
+  items: ModelPaginatorContract<Annotation>
 }
 
 export default class AnnotationCollection {
@@ -19,18 +29,22 @@ export default class AnnotationCollection {
     return this.findItemsByHash(hash).paginate(page, limit)
   }
 
-  static async find(hash: string, pagination: PaginationArguments = { page: 1, limit: 20 }) {
+  static async find(
+    hash: string,
+    pagination: PaginationArguments = { page: 1, limit: 20 }
+  ): Promise<AnnotationCollectionInterface | null> {
     const latestRow = await this.findItemsByHash(hash).orderBy('updatedAt', 'desc').first()
+
+    if (!latestRow) return null
+
     const items = await this.items(hash, pagination)
 
-    return latestRow
-      ? {
-          id: latestRow?.collectionId.toString('hex'),
-          total: items.total,
-          modified: latestRow.updatedAt.toFormat("yyyy-MM-dd'T'HH:mm:ss'Z'"),
-          target: latestRow.targetIri,
-          items: items,
-        }
-      : null
+    return {
+      id: latestRow?.collectionId.toString('hex'),
+      total: items.total,
+      modified: latestRow.updatedAt,
+      target: latestRow.targetIri,
+      items: items,
+    }
   }
 }

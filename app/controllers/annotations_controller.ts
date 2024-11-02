@@ -1,8 +1,20 @@
-import AnnotationCollection from '#models/annotation_collection'
-import { getContentNegotiation } from '#utils/content_negotiation'
 import type { HttpContext } from '@adonisjs/core/http'
-import router from '@adonisjs/core/services/router'
+import AnnotationCollection from '#models/annotation_collection'
+import {
+  ANNOTATION_CONTEXT,
+  ANNOTATION_TYPE,
+  CONSTRAINED_BY,
+  LDP_BASIC_CONTAINER,
+  LDP_CONTEXT,
+  PREFER_CONTAINED_DESCRIPTION,
+  PREFER_CONTAINED_IRIS,
+} from '#utils/constants'
+import { getContentNegotiation, getContentType } from '#utils/content_negotiation'
+import { toXsdDate } from '#utils/dates'
+import { getCollectionId, getCollectionPageUrl } from '#utils/links'
+import annotationPagePresenter, { AnnotationPage } from '#presenters/annotation_page_presenter'
 
+type AnnotationCollectionFirstPage = undefined | string | AnnotationPage
 export default class AnnotationsController {
   /**
    * Display a list of resource
@@ -17,14 +29,20 @@ export default class AnnotationsController {
   /**
    * Handle form submission for the create action
    */
-  async store({}: HttpContext) {}
+  async store(ctx: HttpContext) {
+    const contentType = getContentType(ctx)
+    ctx.logger.info({ contentType })
+  }
 
   /**
    * Show individual record
    */
   async show(ctx: HttpContext) {
-    const { params, request, response } = ctx
+    const { params, request, response, logger } = ctx
     const queryParams = request.qs()
+
+    // TODO: Set completeUrl or `PUBLIC_URL` based on middleware:
+    logger.info({ url: request.completeUrl() })
 
     const pageRequested = Number.parseInt(queryParams.page ?? '-1', 10)
     if (queryParams.page && (Number.isNaN(pageRequested) || pageRequested <= 0)) {
@@ -48,20 +66,15 @@ export default class AnnotationsController {
       return
     }
 
-    const baseUrl = new URL(`${request.protocol() ?? 'http'}://${request.host()}/`)
+    const baseUrl = new URL(`${request.protocol() ?? 'http'}://${request.host()}/`).href
+    const collectionId = getCollectionId(collection, baseUrl)
 
-    response.header(
-      'content-type',
-      'application/ld+json; profile="http://www.w3.org/ns/anno.jsonld"'
-    )
+    response.header('content-type', ANNOTATION_TYPE)
 
     // Only AnnotationCollection has these headers:
     if (pageRequested === 0) {
-      response.header('Link', '<http://www.w3.org/ns/ldp#BasicContainer>; rel="type"')
-      response.header(
-        'Link',
-        '<http://www.w3.org/TR/annotation-protocol/>; rel="http://www.w3.org/ns/ldp#constrainedBy"'
-      )
+      response.header('Link', LDP_BASIC_CONTAINER)
+      response.header('Link', CONSTRAINED_BY)
     }
 
     // For the AnnotationCollection, when page is 0, allow adding entries.
@@ -73,68 +86,33 @@ export default class AnnotationsController {
       response.header('Allow', 'GET, HEAD, OPTIONS')
     }
 
-    const collectionId = new URL(
-      router.builder().params({ id: collection.id }).make('annotations.show'),
-      baseUrl
-    ).href
+    const prefersRepresentation = request.prefersRepresentation()
 
     if (pageRequested === -1) {
+      let firstPage: AnnotationCollectionFirstPage =
+        prefersRepresentation.iris || prefersRepresentation.descriptions
+          ? annotationPagePresenter(collection, baseUrl, prefersRepresentation.descriptions)
+          : getCollectionPageUrl(collection, 1, collectionId, prefersRepresentation.descriptions)
+
       response.json({
-        '@context': ['http://www.w3.org/ns/anno.jsonld', 'http://www.w3.org/ns/ldp.jsonld'],
-        'id': collectionId,
+        '@context': [ANNOTATION_CONTEXT, LDP_CONTEXT],
         'type': ['BasicContainer', 'AnnotationCollection'],
-        'total': collection.total,
-        'modified': collection.modified,
+        'id': collectionId,
         'label': `Web Annotations about ${collection.target}`,
-        // If we the collection is empty, don't render a first property:
-        'first': collection.items.isEmpty
-          ? undefined
-          : collection.items.baseUrl(collectionId).getUrl(1),
-        // If we don't have more pages, don't render a last property:
-        'last': collection.items.hasMorePages
-          ? collection.items.baseUrl(collectionId).getUrl(collection.items.lastPage)
-          : undefined,
+        'total': collection.total,
+        'modified': toXsdDate(collection.modified),
+        'first': firstPage,
+        'last': getCollectionPageUrl(
+          collection,
+          collection.items.lastPage,
+          collectionId,
+          prefersRepresentation.descriptions
+        ),
       })
     } else {
       response.json({
-        '@context': 'http://www.w3.org/ns/anno.jsonld',
-        'id': new URL(
-          router
-            .builder()
-            .params({ id: collection.id })
-            .qs({ page: collection.items.currentPage })
-            .make('annotations.show'),
-          baseUrl
-        ).href,
-        'type': 'AnnotationPage',
-        'partOf': {
-          id: collectionId,
-          total: collection.items.total,
-          modified: collection.modified,
-        },
-        // If the currently requested page is empty, then return no startIndex, as there's no items:
-        'startIndex': collection.items.isEmpty
-          ? undefined
-          : // Otherwise, return the start index of the items within the current page with a 0-based offset:
-            (collection.items.currentPage - 1) * collection.items.perPage,
-        // If we don't have more pages, don't render a next property:
-        'next': collection.items.hasMorePages
-          ? collection.items.baseUrl(collectionId).getNextPageUrl()
-          : undefined,
-        // If we don't have previous pages, don't render a prev property:
-        'prev':
-          collection.items.currentPage > 1
-            ? collection.items.baseUrl(collectionId).getPreviousPageUrl()
-            : undefined,
-        'items': collection.items.all().map((item) => {
-          return new URL(
-            router
-              .builder()
-              .params({ id: item.id, collectionId: collection.id })
-              .make('annotation.show'),
-            baseUrl
-          ).href
-        }),
+        '@context': ANNOTATION_CONTEXT,
+        ...annotationPagePresenter(collection, baseUrl, queryParams.prefers === 'descriptions'),
       })
     }
   }

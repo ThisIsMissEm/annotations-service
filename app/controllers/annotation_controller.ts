@@ -1,9 +1,9 @@
-// import AnnotationCollection from '#models/annotation_collection'
 import type { HttpContext } from '@adonisjs/core/http'
-import router from '@adonisjs/core/services/router'
 
 import Annotation from '#models/annotation'
-import { getContentNegotiation } from '#utils/content_negotiation'
+import { getContentNegotiation, getContentType } from '#utils/content_negotiation'
+import { ANNOTATION_CONTEXT, ANNOTATION_TYPE } from '#utils/constants'
+import annotationPresenter from '#presenters/annotation_presenter'
 
 export default class AnnotationController {
   /**
@@ -32,12 +32,9 @@ export default class AnnotationController {
       return
     }
 
-    const baseUrl = new URL(`${request.protocol() ?? 'http'}://${request.host()}/`)
+    const baseUrl = new URL(`${request.protocol() ?? 'http'}://${request.host()}/`).href
 
-    response.header(
-      'Content-Type',
-      'application/ld+json; profile="http://www.w3.org/ns/anno.jsonld"'
-    )
+    response.header('Content-Type', ANNOTATION_TYPE)
 
     response.header('Link', '<http://www.w3.org/ns/ldp#Resource>; rel="type"')
     response.header('Vary', 'Allow')
@@ -45,21 +42,8 @@ export default class AnnotationController {
     response.header('Cache-Control', 'public')
 
     response.json({
-      '@context': 'http://www.w3.org/ns/anno.jsonld',
-      'type': 'Annotation',
-      'id': new URL(
-        router
-          .builder()
-          .params({ collectionId: annotation.collectionId.toString('hex'), id: annotation.id })
-          .make('annotation.show'),
-        baseUrl
-      ),
-      'created': annotation.createdAt.toFormat("yyyy-MM-dd'T'HH:mm:ss'Z'"),
-      'body': {
-        type: 'TextualBody',
-        value: annotation.content,
-      },
-      'target': annotation?.targetIri,
+      '@context': ANNOTATION_CONTEXT,
+      ...annotationPresenter(annotation, baseUrl),
     })
   }
 
@@ -71,7 +55,10 @@ export default class AnnotationController {
   /**
    * Handle form submission for the edit action
    */
-  async update({}: HttpContext) {}
+  async update(ctx: HttpContext) {
+    const contentType = getContentType(ctx)
+    ctx.logger.info({ contentType, body: ctx.request.body(), json: ctx.request.all() })
+  }
 
   /**
    * Delete record

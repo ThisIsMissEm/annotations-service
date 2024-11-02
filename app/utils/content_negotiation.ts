@@ -1,8 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { ANNOTATION_TYPE } from './constants.js'
 
 export function getContentNegotiation(ctx: HttpContext): string {
   const format = ctx.request.accepts([
-    'application/ld+json; profile="http://www.w3.org/ns/anno.jsonld"',
+    ANNOTATION_TYPE,
     'application/ld+json',
     'application/json',
     'text/html',
@@ -10,4 +11,15 @@ export function getContentNegotiation(ctx: HttpContext): string {
   ])
 
   return format ?? '*/*'
+}
+
+export function getContentType(ctx: HttpContext): string {
+  const format = ctx.request.is([
+    ANNOTATION_TYPE,
+    'application/ld+json',
+    'application/json',
+    'multipart/form-data',
+  ])
+
+  return format ?? 'multipart/form-data'
 }
