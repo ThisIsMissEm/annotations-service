@@ -1,4 +1,5 @@
 import { defineConfig } from '@adonisjs/core/bodyparser'
+import { ANNOTATION_TYPE } from '#utils/constants'
 
 const bodyParserConfig = defineConfig({
   /**
@@ -21,12 +22,7 @@ const bodyParserConfig = defineConfig({
    */
   json: {
     convertEmptyStringsToNull: true,
-    types: [
-      'application/json',
-      'application/json-patch+json',
-      'application/vnd.api+json',
-      'application/csp-report',
-    ],
+    types: [ANNOTATION_TYPE, 'application/ld+json', 'application/json', 'application/csp-report'],
   },
 
   /**
