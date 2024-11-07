@@ -49,12 +49,12 @@ export default class AnnotationsController {
       response.abort({ error: 'Bad Request, page query parameter malformed' }, 400)
       return
     }
-
-    const collection = await AnnotationCollection.find(params.id, {
+    const paginationParams = {
       page: pageRequested <= 0 ? 1 : pageRequested,
       limit: 2,
-    })
+    }
 
+    const collection = await AnnotationCollection.find(params.id)
     if (!collection || collection.id !== params.id) {
       response.abort({ error: 'Not Found' }, 404)
       return
@@ -87,12 +87,13 @@ export default class AnnotationsController {
     }
 
     const prefersRepresentation = request.prefersRepresentation()
+    const items = await collection.items(paginationParams)
 
     if (pageRequested === -1) {
       let firstPage: AnnotationCollectionFirstPage =
         prefersRepresentation.iris || prefersRepresentation.descriptions
-          ? annotationPagePresenter(collection, baseUrl, prefersRepresentation.descriptions)
-          : getCollectionPageUrl(collection, 1, collectionId, prefersRepresentation.descriptions)
+          ? annotationPagePresenter(collection, items, baseUrl, prefersRepresentation.descriptions)
+          : getCollectionPageUrl(collection, items, baseUrl, 1, prefersRepresentation.descriptions)
 
       response.json({
         '@context': [ANNOTATION_CONTEXT, LDP_CONTEXT],
@@ -100,19 +101,29 @@ export default class AnnotationsController {
         'id': collectionId,
         'label': `Web Annotations about ${collection.target}`,
         'total': collection.total,
+        // This modified timestamp isn't quite right, I'd more likely need a
+        // view where I'm grouping by collectionId and then selecting the first
+        // value for createdAt and the last value for updatedAt: 'modified':
+        'created': toXsdDate(collection.created),
         'modified': toXsdDate(collection.modified),
         'first': firstPage,
         'last': getCollectionPageUrl(
           collection,
-          collection.items.lastPage,
-          collectionId,
+          items,
+          baseUrl,
+          items.lastPage,
           prefersRepresentation.descriptions
         ),
       })
     } else {
       response.json({
         '@context': ANNOTATION_CONTEXT,
-        ...annotationPagePresenter(collection, baseUrl, queryParams.prefers === 'descriptions'),
+        ...annotationPagePresenter(
+          collection,
+          items,
+          baseUrl,
+          queryParams.prefers === 'descriptions'
+        ),
       })
     }
   }

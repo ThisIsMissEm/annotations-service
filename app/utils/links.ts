@@ -1,7 +1,9 @@
 import type Annotation from '#models/annotation'
-import type { AnnotationCollectionInterface } from '#models/annotation_collection'
+import type { AnnotationCollectionAttributes } from '#models/annotation_collection'
+import AnnotationCollection from '#models/annotation_collection'
 
 import router from '@adonisjs/core/services/router'
+import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 const prefersDescriptionsQueryParam = '&prefers=descriptions'
 
@@ -16,25 +18,26 @@ export function getAnnotationId(annotation: Annotation, baseUrl: string) {
 }
 
 export function getCollectionId(
-  collection: AnnotationCollectionInterface,
+  collection: AnnotationCollection & AnnotationCollectionAttributes,
   baseUrl: string
 ): string {
   return new URL(router.builder().params({ id: collection.id }).make('annotations.show'), baseUrl)
     .href
 }
 
-export function getCollectionStartIndex(collection: AnnotationCollectionInterface) {
+export function getCollectionStartIndex(items: ModelPaginatorContract<Annotation>) {
   // If the collection page is empty, don't return a startIndex
-  if (collection.items.isEmpty) {
+  if (items.isEmpty) {
     return undefined
   }
 
   // Otherwise, return the start index of the items within the current page with a 0-based offset:
-  return (collection.items.currentPage - 1) * collection.items.perPage
+  return (items.currentPage - 1) * items.perPage
 }
 
 export function getCollectionPageId(
-  collection: AnnotationCollectionInterface,
+  collection: AnnotationCollection & AnnotationCollectionAttributes,
+  items: ModelPaginatorContract<Annotation>,
   baseUrl: string,
   prefersDescriptions: boolean
 ): string {
@@ -43,7 +46,7 @@ export function getCollectionPageId(
       .builder()
       .params({ id: collection.id })
       .qs({
-        page: collection.items.currentPage,
+        page: items.currentPage,
         prefers: prefersDescriptions ? 'descriptions' : undefined,
       })
       .make('annotations.show'),
@@ -52,30 +55,35 @@ export function getCollectionPageId(
 }
 
 export function getCollectionPageUrl(
-  collection: AnnotationCollectionInterface,
+  collection: AnnotationCollection & AnnotationCollectionAttributes,
+  items: ModelPaginatorContract<Annotation>,
+  baseUrl: string,
   page: number,
-  collectionId: string,
   prefersDescriptions: boolean
 ): string | undefined {
-  if (collection.items.isEmpty) {
+  if (items.isEmpty) {
     return undefined
   }
   if (prefersDescriptions) {
-    return collection.items.baseUrl(collectionId).getUrl(page) + prefersDescriptionsQueryParam
+    return (
+      items.baseUrl(getCollectionId(collection, baseUrl)).getUrl(page) +
+      prefersDescriptionsQueryParam
+    )
   }
 
-  return collection.items.baseUrl(collectionId).getUrl(page)
+  return items.baseUrl(getCollectionId(collection, baseUrl)).getUrl(page)
 }
 
 // If we don't have more pages, don't render a next property:
 export function getCollectionNextPageUrl(
-  collection: AnnotationCollectionInterface,
-  collectionId: string,
+  collection: AnnotationCollection & AnnotationCollectionAttributes,
+  items: ModelPaginatorContract<Annotation>,
+  baseUrl: string,
   prefersDescriptions: boolean
 ): string | undefined {
-  const nextPage = collection.items.baseUrl(collectionId).getNextPageUrl()
+  const nextPage = items.baseUrl(getCollectionId(collection, baseUrl)).getNextPageUrl()
 
-  if (collection.items.hasMorePages && typeof nextPage === 'string') {
+  if (items.hasMorePages && typeof nextPage === 'string') {
     if (prefersDescriptions) {
       return nextPage + prefersDescriptionsQueryParam
     }
@@ -87,13 +95,14 @@ export function getCollectionNextPageUrl(
 
 // If we don't have previous pages, don't render a prev property:
 export function getCollectionPrevPageUrl(
-  collection: AnnotationCollectionInterface,
-  collectionId: string,
+  collection: AnnotationCollection & AnnotationCollectionAttributes,
+  items: ModelPaginatorContract<Annotation>,
+  baseUrl: string,
   prefersDescriptions: boolean
 ): string | undefined {
-  const prevPage = collection.items.baseUrl(collectionId).getPreviousPageUrl()
+  const prevPage = items.baseUrl(getCollectionId(collection, baseUrl)).getPreviousPageUrl()
 
-  if (collection.items.currentPage > 1 && typeof prevPage === 'string') {
+  if (items.currentPage > 1 && typeof prevPage === 'string') {
     if (prefersDescriptions) {
       return prevPage + prefersDescriptionsQueryParam
     }

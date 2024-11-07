@@ -32,7 +32,7 @@ export default defineConfig({
     () => import('@adonisjs/lucid/database_provider'),
     () => import('@adonisjs/core/providers/vinejs_provider'),
     () => import('./providers/session_provider.js'),
-    () => import('./providers/shield_provider.js'),
+    // () => import('./providers/shield_provider.js'),
     () => import('@adonisjs/auth/auth_provider'),
     () => import('@adonisjs/vite/vite_provider'),
     () => import('@adonisjs/core/providers/edge_provider'),
